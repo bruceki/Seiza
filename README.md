@@ -55,7 +55,7 @@ cd into the HTML directory and fire up a web server with python, use:
 
 Once it's running go to your browser and go to localhost:7800 to see a standalone demo 
 
-I have included some test data that I dropped in from a [tutorial]('https://wayofthedev.com/tutorials/custom-pixel-art-shader/') I made on creating a super simple, no-frills pixel art compositor in Blender for 3D characters. You should be able to see it immediately.
+I have included some test data that I dropped in from a [tutorial](https://wayofthedev.com/tutorials/custom-pixel-art-shader/) I made on creating a super simple, no-frills pixel art compositor in Blender for 3D characters. You should be able to see it immediately.
 
 ![SEIZA MATERIAL VIEWER](./Resources/seiza-material-viewer.png "Seiza Material Viewer")
 
