@@ -44,18 +44,19 @@ And that's about it for exporting! If all goes well, and if you use the example 
 
 Now to visualize! 
 
-![SEIZA MATERIAL VIEWER](./Resources/seiza-material-viewer.png "Seiza Material Viewer")
-
 Currently Seiza only renders LOFI versions which are intended to strip away the spaghetti monster-ness and show the main structure of a shader, so don't expect high degrees of granularity at this time it's just a neat way to get an idea of how something was made with less visual clutter.
 
 Go check out /HTML/index.html in your terminal. 
 
-cd into the HTML directory and fire up a web server with python, 'python3 -m http.server 7800'
+cd into the HTML directory and fire up a web server with python, use:
+ 'python3 -m http.server 7800'
+
+![SERVER](./Resources/server.png "Server")
 
 Once it's running go to your browser and go to localhost:7800 to see a standalone demo 
 
 I have included some test data that I dropped in from a [tutorial]('wayofthedev.com/tutorials/custom-pixel-art-shader/') I made on creating a super simple, no-frills pixel art compositor in Blender for 3D characters. You should be able to see it immediately.
 
-
+![SEIZA MATERIAL VIEWER](./Resources/seiza-material-viewer.png "Seiza Material Viewer")
 
  
