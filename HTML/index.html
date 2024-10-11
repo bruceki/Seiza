@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seiza Material Viewer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #18191F;
+            font-family: Arial, sans-serif;
+        }
+
+        #node-graph-container {
+            background-image:
+                linear-gradient(45deg, #1E1E1E 25%, transparent 25%),
+                linear-gradient(-45deg, #1E1E1E 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #1E1E1E 75%),
+                linear-gradient(-45deg, transparent 75%, #1E1E1E 75%);
+            background-size: 40px 40px;
+            background-position: 0 0, 0 20px, 20px -20px, -20px 0;
+            width: 100%;
+            height: 100%;
+            position: relative;
+            cursor: grab;
+        }
+
+        #node-graph-container:active {
+            cursor: grabbing;
+        }
+
+        #node-graph {
+            width: 100%;
+            height: 100%;
+        }
+
+        .lofi-overlay {
+            position: absolute;
+            top: 50px;
+            right: 20px;
+            font-size: 6vw;
+            font-weight: bold;
+            color: rgba(0, 0, 0, 0.3);
+            text-align: right;
+            pointer-events: none;
+            display: block;
+            z-index: 1;
+        }
+
+        #blender-version {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: white;
+            text-align: right;
+            z-index: 10;
+        }
+
+        .info-text {
+            color: #fff;
+            font-size: 10px;
+            margin-top: 5px;
+        }
+
+        .powered-by-link {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            z-index: 20;
+        }
+
+        .powered-by-text {
+            font-weight: bold;
+            font-size: 12px;
+            margin-right: 5px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            background: linear-gradient(90deg, #00FF00, #00FFAA, #00FF00, #99FF99);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: neon-gradient 0.5s infinite ease-in-out;
+        }
+
+        .powered-by-logo {
+            width: 20px;
+            height: 20px;
+        }
+
+        .logo-top-left {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 70px;
+            height: 70px;
+            z-index: 10;
+        }
+
+        @keyframes neon-gradient {
+            0%, 100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="node-graph-container">
+        <img src="img/seiza.svg" alt="Seiza logo" class="logo-top-left" style="">
+        <div id="lofi-text" class="lofi-overlay">LOFI</div>
+        <div id="node-graph"></div>
+
+        <div id="blender-version">
+            <span style="color: white;">Generated with Blender </span>
+            <span style="color: orange; font-weight: bold;">4.2.1 LTS</span>
+            <div class="info-text" style="color:#fff;">
+                Drag to pan, scroll to zoom.<br>
+                LOFI mode: a de-spaghettified view of a node graph. This is designed to show you the most basic representation possible.
+            </div>
+        </div>
+
+        <a href="https://github.com/bruceki/Seiza" target="_blank" class="powered-by-link">
+            <span class="powered-by-text">Powered by</span>
+            <img src="img/logo-seiza-mini.png" alt="Seiza logo" class="powered-by-logo">
+        </a>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const nodeGraphContainer = document.getElementById('node-graph');
+            const blenderVersionText = document.getElementById('blender-version');
+
+            fetch('compositor_shader.json')
+                .then(response => response.json())
+                .then(data => {
+                    const blenderVersion = data.blender_version;
+                    blenderVersionText.innerHTML = `
+                        <span style="color: white;">Generated with Blender </span>
+                        <span style="color: orange; font-weight: bold;">${blenderVersion}</span>
+                        <div class="info-text">
+                            Drag to pan, scroll to zoom.<br>
+                            LOFI mode: a de-spaghettified view of a node graph. This is designed to show you the most basic representation possible.
+                        </div>
+                    `;
+                    const normalizedNodes = normalizeNodePositions(data.nodes);
+                    renderNodeGraph(normalizedNodes, data.links);
+                });
+
+            function normalizeNodePositions(nodes) {
+                const minX = Math.min(...nodes.map(n => n.location[0]));
+                const minY = Math.min(...nodes.map(n => n.location[1]));
+                return nodes.map(node => ({
+                    ...node,
+                    location: [node.location[0] - minX + 50, node.location[1] - minY + 50],
+                    cleanName: node.name.replace(/\.\d+$/, ''),
+                    settingsText: generateRelevantSettings(node),
+                    borderColor: getNodeColor(node)
+                }));
+            }
+
+  function renderNodeGraph(nodes, links) {
+    const container = document.getElementById('node-graph');
+    if (!container) return;
+
+    const width = container.clientWidth;
+    const height = Math.max(300, container.clientHeight);
+
+    d3.select(container).select('svg').remove();
+
+    const svg = d3.select(container)
+      .append('svg')
+      .attr('width', width)
+      .attr('height', height)
+      .call(
+        d3.zoom()
+          .scaleExtent([0.1, 10])
+          .on('zoom', (event) => {
+            svg.attr('transform', event.transform);
+          })
+      )
+      .append('g')
+      .attr('transform', 'translate(0, 0) scale(1)');
+
+    svg.selectAll('line')
+      .data(links)
+      .enter()
+      .append('line')
+      .attr('x1', d => findNodeByName(nodes, d.from_node).location[0])
+      .attr('y1', d => findNodeByName(nodes, d.from_node).location[1])
+      .attr('x2', d => findNodeByName(nodes, d.to_node).location[0])
+      .attr('y2', d => findNodeByName(nodes, d.to_node).location[1])
+      .attr('stroke', '#B3FF00')
+      .attr('stroke-width', 2);
+
+    svg.selectAll('rect')
+      .data(nodes.filter(d => d.type !== 'NodeReroute'))
+      .enter()
+      .append('rect')
+      .attr('x', d => d.location[0] - 95)
+      .attr('y', d => d.location[1] - 70)
+      .attr('width', 190)
+      .attr('height', d => Math.max(70, 30 + d.settingsText.length * 15 + 20))
+      .attr('rx', 10)
+      .attr('ry', 10)
+      .attr('fill', 'url(#node-gradient)')
+      .attr('stroke', d => d.borderColor)
+      .attr('stroke-width', 2);
+
+    svg.selectAll('circle')
+      .data(nodes.filter(d => d.type === 'NodeReroute'))
+      .enter()
+      .append('circle')
+      .attr('cx', d => d.location[0])
+      .attr('cy', d => d.location[1])
+      .attr('r', 10)
+      .attr('fill', '#B3FF00')
+      .attr('stroke', '#B3FF00')
+      .attr('stroke-width', 2);
+
+    svg.append('defs')
+      .append('linearGradient')
+      .attr('id', 'node-gradient')
+      .attr('x1', '0%')
+      .attr('y1', '0%')
+      .attr('x2', '0%')
+      .attr('y2', '100%')
+      .html(`
+        <stop offset="0%" style="stop-color:#18191F;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#111113;stop-opacity:1" />
+      `);
+
+    svg.selectAll('text.node-name')
+      .data(nodes)
+      .enter()
+      .append('text')
+      .attr('class', 'node-name')
+      .attr('x', d => d.location[0])
+      .attr('y', d => d.location[1] - 50)
+      .text(d => d.cleanName)
+      .attr('font-size', '12px')
+      .attr('fill', '#B3FF00')
+      .attr('text-anchor', 'middle')
+      .attr('alignment-baseline', 'middle');
+
+    svg.selectAll('g.node-settings')
+      .data(nodes)
+      .enter()
+      .append('g')
+      .attr('class', 'node-settings')
+      .each(function(d) {
+        const settingsGroup = d3.select(this);
+        settingsGroup
+          .selectAll('tspan')
+          .data(d.settingsText.filter(s => !s.startsWith('Input:')))
+          .enter()
+          .append('text')
+          .attr('x', d.location[0] - 75)
+          .attr('y', (s, i) => d.location[1] - 30 + i * 15)
+          .text(s => s)
+          .attr('font-size', '10px')
+          .attr('fill', '#FFFFFF')
+          .attr('text-anchor', 'start')
+          .attr('alignment-baseline', 'hanging');
+      });
+  }
+
+            function findNodeByName(nodes, name) {
+                return nodes.find(node => node.name === name);
+            }
+
+            function generateRelevantSettings(node) {
+                const settings = node.settings || {};
+                const inputs = node.inputs || [];
+                const relevantSettings = {};
+
+                switch (node.type) {
+                    case 'CompositorNodeMath':
+                        relevantSettings['operation'] = settings['operation'];
+                        inputs.forEach(input => {
+                            if (input.default_value !== undefined) {
+                                relevantSettings[input.name] = input.default_value;
+                            }
+                        });
+                        break;
+                    case 'CompositorNodeValue':
+                        relevantSettings['Default Value'] = node.value ?? "undefined";
+                        break;
+                    default:
+                        inputs.forEach(input => {
+                            if (input.default_value !== undefined) {
+                                relevantSettings[input.name] = input.default_value;
+                            }
+                        });
+                        break;
+                }
+
+                return Object.entries(relevantSettings)
+                    .map(([key, value]) => `${key}: ${value}`);
+            }
+
+            function getNodeColor(node) {
+                const nodeTypeColors = {
+                    'CompositorNodeMath': '#4A90E2',
+                    'CompositorNodeValue': '#FF5A90',
+                    'CompositorNodeBlur': '#8E44AD',
+                    'CompositorNodeScale': '#6A9F6D',
+                    'CompositorNodePixelate': '#4B0082',
+                    'NodeReroute': '#B3FF00',
+                };
+                return nodeTypeColors[node.type] || '#482FAA';
+            }
+        });
+    </script>
+</body>
+</html>
